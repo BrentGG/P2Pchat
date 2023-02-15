@@ -37,3 +37,4 @@
 # End of https://www.toptal.com/developers/gitignore/api/qtcreator
 
 build-P2Pchat*
+*.user
