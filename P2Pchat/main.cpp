@@ -1,19 +1,13 @@
-#include "p2pclient.h"
+#include "mainwindow.h"
 
-#include <QCoreApplication>
-#include <QString>
-#include <iostream>
+#include <QApplication>
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
-
-    P2Pclient* client = new P2Pclient();
-    /*while (1) {
-        char message[500];
-        gets(message);
-        client->sendMsg(message);
-    }*/
-
+    QApplication a(argc, argv);
+    QString addr = argc > 2 ? QString(argv[1]) : "";
+    quint16 port = argc > 2 ? QString(argv[2]).toUShort() : 0;
+    MainWindow w = MainWindow(nullptr, addr, port);
+    w.show();
     return a.exec();
 }

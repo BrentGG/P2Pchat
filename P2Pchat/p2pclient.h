@@ -14,22 +14,31 @@ public:
     P2Pclient(QString addr, unsigned short port);
 
     void sendMsg(QString msg);
+    QTcpSocket* getFirstConn();
+
+signals:
+    void msgSent(QString msg);
+    void msgRecd(QTcpSocket* peer, QString msg);
+    void newConn(QTcpSocket* peer);
+    void failedConn(QString addrAndPort);
+    void disConn(QString addrAndPort);
 
 private:
-    QTcpSocket* socket;
     QTcpServer* server;
-
-    QList<QString> peers;
-
-    QString msg;
+    QList<QTcpSocket*> peers;
+    QList<QString> peersAddrAndPort;
 
     void init();
     void loop();
 
-signals:
+    QString peerListToStr();
+    void strToPeerList(QString str);
+    bool addPeerToList(QTcpSocket* peer);
 
 private slots:
-    void newConn();
+    void newConnection();
+    void read();
+    void peerDisconnected();
 };
 
 #endif // P2PCLIENT_H

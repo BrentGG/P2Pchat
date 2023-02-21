@@ -5,67 +5,128 @@
 P2Pclient::P2Pclient()
 {
     init();
-    //loop();
 }
 
 P2Pclient::P2Pclient(QString addr, unsigned short port)
 {
     init();
+    QTcpSocket* socket = new QTcpSocket(this);
     socket->connectToHost(addr, port);
-    peers.append(socket->peerAddress().toString());
     socket->waitForConnected();
-    std::cout << "Connected" << std::endl;
-    socket->close();
-    //loop();
+    std::cout << "Connected to " << socket->peerAddress().toString().toStdString() << ":" << QString::number(socket->peerPort()).toStdString() << std::endl;
+    socket->waitForReadyRead();
+    addPeerToList(socket);
+    strToPeerList(QString(socket->readAll()));
+    connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
+    connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
 }
 
 void P2Pclient::init()
 {
-    socket = new QTcpSocket(this);
-
     server = new QTcpServer(this);
-    connect(server, SIGNAL(newConnection()), this, SLOT(newConn()));
+    connect(server, &QTcpServer::newConnection, this, &P2Pclient::newConnection);
     if(!server->listen(QHostAddress::Any, 24042))
-        qDebug() << "Server could not start";
+        std::cout << "Server could not start" << std::endl;
     else
-        qDebug() << "Server started!";
+        std::cout << "Server started" << std::endl;
 }
 
-void P2Pclient::loop()
+void P2Pclient::newConnection()
 {
-    while (1) {
-        char message[500];
-        gets(message);
-        for(QString a : peers) {
-            socket->connectToHost(a, 24042);
-            socket->write(QString(message).toUtf8());
+    QTcpSocket *socket = server->nextPendingConnection();
+    if (addPeerToList(socket)) {
+        socket->write(peerListToStr().toUtf8());
+        connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
+        connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
+        std::cout << "Connected to " << socket->peerAddress().toString().toStdString() << ":" << QString::number(socket->peerPort()).toStdString() << std::endl;
+        emit newConn(socket);
+    }
+}
+
+void P2Pclient::read()
+{
+    for (QTcpSocket* peer : peers) {
+        while (peer->bytesAvailable() > 0) {
+            QString msg = QString::fromUtf8(peer->readAll());
+            std::cout << "<" << QHostAddress(peer->peerAddress().toIPv4Address()).toString().toStdString() << ":" << QString::number(peer->peerPort()).toStdString() << "> " << msg.toStdString() << std::endl;
+            emit msgRecd(peer, msg);
         }
     }
 }
 
-void P2Pclient::newConn()
+void P2Pclient::peerDisconnected()
 {
-    std::cout << "new connection" << std::endl;
-    QTcpSocket *s = server->nextPendingConnection();
-
-    if(!peers.contains(s->peerAddress().toString())) { // new peer
-        std::cout << "Added peer to list" << std::endl;
-        peers.append(s->peerAddress().toString());
-        for(int i = 0; i < peers.size(); ++i)
-            std::cout << peers[i].toStdString() << std::endl;
+    QTcpSocket* peer = (QTcpSocket*)QObject::sender();
+    std::cout << "Peer at " << QHostAddress(peer->peerAddress().toIPv4Address()).toString().toStdString() << ":" << QString::number(peer->peerPort()).toStdString() << " disconnected" << std::endl;
+    for (int i = 0; i < peers.size(); ++i) {
+        if (peer == peers[i]) {
+            emit disConn(peersAddrAndPort[i]);
+            peers.remove(i);
+            peersAddrAndPort.remove(i);
+            break;
+        }
     }
-    else { // existing peer
-        QString data = QString::fromUtf8(s->readAll());
-        std::cout << "Received data: " << data.toStdString() << std::endl;
-    }
+}
 
-    s->close();
+QString P2Pclient::peerListToStr()
+{
+    QString str = "NEWCON\n";
+    for(QTcpSocket* peer : peers) {
+        if (peer->state() == QTcpSocket::ConnectedState) {
+            str.append(QHostAddress(peer->peerAddress().toIPv4Address()).toString());
+            str.append(":24042\n");
+        }
+    }
+    return str;
+}
+
+void P2Pclient::strToPeerList(QString str)
+{
+    QStringList splitStr = str.split('\n');
+    if (splitStr.size() > 2) {
+        for(int i = 1; i < splitStr.size() - 1; ++i) {
+            QTcpSocket *socket = new QTcpSocket(this);
+            QStringList addrAndPort = splitStr[i].split(':');
+            socket->connectToHost(addrAndPort[0], addrAndPort[1].toUShort());
+            socket->waitForConnected();
+            socket->waitForReadyRead();
+            if (socket->state() == QTcpSocket::ConnectedState) {
+                if (addPeerToList(socket)) {
+                    connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
+                    connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
+                    std::cout << "Connected to " << splitStr[i].toStdString() << std::endl;
+                    emit newConn(socket);
+                }
+            }
+            else {
+                std::cout << "Failed to connect to " << splitStr[i].toStdString() << std::endl;
+                emit failedConn(splitStr[i]);
+            }
+        }
+    }
+}
+
+bool P2Pclient::addPeerToList(QTcpSocket *peer)
+{
+    QString addrAndPort = QHostAddress(peer->peerAddress().toIPv4Address()).toString() + ":" + QString::number(peer->peerPort());
+    if (!peersAddrAndPort.contains(addrAndPort)) {
+        peers.append(peer);
+        peersAddrAndPort.append(addrAndPort);
+        return true;
+    }
+    return false;
 }
 
 void P2Pclient::sendMsg(QString msg)
 {
-    for(QString a : peers) {
-        socket->connectToHost(a, 24042);
-        socket->write(QString(msg).toUtf8());
+    for(QTcpSocket* peer : peers) {
+        peer->write(QString(msg).toUtf8());
     }
+    std::cout << "Message sent: " << msg.toStdString() << std::endl;
+    emit msgSent(msg);
+}
+
+QTcpSocket *P2Pclient::getFirstConn()
+{
+    return peers.size() > 0 ? peers[0] : nullptr;
 }
