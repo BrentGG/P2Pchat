@@ -52,13 +52,15 @@ void P2Pclient::newConnection()
 
 void P2Pclient::read()
 {
-    for (QTcpSocket* peer : peers) {
-        while (peer->bytesAvailable() > 0) {
-            QString msg = QString::fromUtf8(peer->readAll());
+    for (int i = 0; i < peers.size(); ++i) {
+        while (peers[i]->bytesAvailable() > 0) {
+            QString msg = QString::fromUtf8(peers[i]->readAll());
             QStringList list = msg.split('\n');
-            if (list.size() > 0 && list[0] != "NEWCON") {
-                std::cout << "<" << QHostAddress(peer->peerAddress().toIPv4Address()).toString().toStdString() << ":" << QString::number(peer->peerPort()).toStdString() << "> " << msg.toStdString() << std::endl;
-                emit msgRecd(peer, msg);
+            if (!show[i])
+                emit print("Message by " + peersAddrAndPort[i] + " blocked", TYPE::NEUTRAL);
+            else if (list.size() > 0 && list[0] != "NEWCON") {
+                std::cout << "<" << QHostAddress(peers[i]->peerAddress().toIPv4Address()).toString().toStdString() << ":" << QString::number(peers[i]->peerPort()).toStdString() << "> " << msg.toStdString() << std::endl;
+                emit msgRecd(peers[i], msg, names[i]);
             }
         }
     }
@@ -73,6 +75,8 @@ void P2Pclient::peerDisconnected()
             emit disConn(peersAddrAndPort[i]);
             peers.remove(i);
             peersAddrAndPort.remove(i);
+            names.remove(i);
+            show.remove(i);
             break;
         }
     }
@@ -124,6 +128,8 @@ bool P2Pclient::addPeerToList(QTcpSocket *peer)
     if (!peersAddrAndPort.contains(addrAndPort)) {
         peers.append(peer);
         peersAddrAndPort.append(addrAndPort);
+        names.append("");
+        show.append(true);
         return true;
     }
     return false;
@@ -133,9 +139,38 @@ void P2Pclient::handleCommand(QString command)
 {
     QStringList commandSplit = command.split(' ');
     if (commandSplit[0] == "\\help")
-        emit commandHandled("Available commands:\n\\myip", TYPE::NEUTRAL);
+        emit print("Available commands:\n\\myip", TYPE::NEUTRAL);
     else if (commandSplit[0] == "\\myip")
-        emit commandHandled("Your IP: " + ownIp, TYPE::NEUTRAL);
+        emit print("Your IP: " + ownIp, TYPE::NEUTRAL);
+    else if (commandSplit[0] == "\\setname" && commandSplit.size() > 2) {
+        for (int i = 0; i < peers.size(); ++i) {
+            if (peersAddrAndPort[i] == commandSplit[1] || (names[i] != "" && names[i] == commandSplit[1])) {
+                names[i] = commandSplit[2];
+                emit print("Name of " + commandSplit[1] + " set to " + commandSplit[2], TYPE::NEUTRAL);
+                break;
+            }
+        }
+    }
+    else if (commandSplit[0] == "\\block" && commandSplit.size() > 1) {
+        for (int i = 0; i < peers.size(); ++i) {
+            if (peersAddrAndPort[i] == commandSplit[1] || (names[i] != "" && names[i] == commandSplit[1])) {
+                show[i] = false;
+                emit print("Blocked " + commandSplit[1], TYPE::NEUTRAL);
+                break;
+            }
+        }
+    }
+    else if (commandSplit[0] == "\\unblock" && commandSplit.size() > 1) {
+        for (int i = 0; i < peers.size(); ++i) {
+            if (peersAddrAndPort[i] == commandSplit[1] || (names[i] != "" && names[i] == commandSplit[1])) {
+                show[i] = true;
+                emit print("Unblocked " + commandSplit[1], TYPE::NEUTRAL);
+                break;
+            }
+        }
+    }
+    else
+        emit print("Command not recognized", TYPE::FAIL);
 }
 
 void P2Pclient::sendMsg(QString msg)

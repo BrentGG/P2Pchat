@@ -22,7 +22,7 @@ public:
 
 private slots:
     void dispMsgSent(QString msg);
-    void dispMsgRecd(QTcpSocket* peer, QString msg);
+    void dispMsgRecd(QTcpSocket* peer, QString msg, QString name);
     void dispNewConn(QTcpSocket* peer);
     void dispFailedConn(QString addrAndPort);
     void sendButtonPressed();

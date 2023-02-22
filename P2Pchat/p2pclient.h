@@ -24,16 +24,18 @@ public:
 
 signals:
     void msgSent(QString msg);
-    void msgRecd(QTcpSocket* peer, QString msg);
+    void msgRecd(QTcpSocket* peer, QString msg, QString name);
     void newConn(QTcpSocket* peer);
     void failedConn(QString addrAndPort);
     void disConn(QString addrAndPort);
-    void commandHandled(QString text, TYPE type);
+    void print(QString text, TYPE type);
 
 private:
     QTcpServer* server;
     QList<QTcpSocket*> peers;
     QList<QString> peersAddrAndPort;
+    QList<QString> names;
+    QList<bool> show;
     QString ownIp;
 
     void init();

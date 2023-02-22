@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent, QString addr, quint16 port): QMainWindow
     connect(client, &P2Pclient::newConn, this, &MainWindow::dispNewConn);
     connect(client, &P2Pclient::failedConn, this, &MainWindow::dispFailedConn);
     connect(client, &P2Pclient::disConn, this, &MainWindow::dispDisConn);
-    connect(client, &P2Pclient::commandHandled, this, &MainWindow::systemPrint);
+    connect(client, &P2Pclient::print, this, &MainWindow::systemPrint);
 
     QWidget* centralWidget = new QWidget();
     QVBoxLayout* mainLayout = new QVBoxLayout();
@@ -52,10 +52,11 @@ void MainWindow::dispMsgSent(QString msg)
     recdField->append("<You> " + msg);
 }
 
-void MainWindow::dispMsgRecd(QTcpSocket *peer, QString msg)
+void MainWindow::dispMsgRecd(QTcpSocket *peer, QString msg, QString name)
 {
     recdField->setTextColor(QColor::fromRgb(0, 0, 0));
-    recdField->append("<" + QHostAddress(peer->peerAddress().toIPv4Address()).toString() + ":" + QString::number(peer->peerPort()) + "> " + msg);
+    QString dispName = name == "" ? QHostAddress(peer->peerAddress().toIPv4Address()).toString() + ":" + QString::number(peer->peerPort()) : name;
+    recdField->append("<" + dispName + "> " + msg);
 }
 
 void MainWindow::dispNewConn(QTcpSocket *peer)
