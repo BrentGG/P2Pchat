@@ -48,8 +48,11 @@ void P2Pclient::read()
     for (QTcpSocket* peer : peers) {
         while (peer->bytesAvailable() > 0) {
             QString msg = QString::fromUtf8(peer->readAll());
-            std::cout << "<" << QHostAddress(peer->peerAddress().toIPv4Address()).toString().toStdString() << ":" << QString::number(peer->peerPort()).toStdString() << "> " << msg.toStdString() << std::endl;
-            emit msgRecd(peer, msg);
+            QStringList list = msg.split('\n');
+            if (list.size() > 0 && list[0] != "NEWCON") {
+                std::cout << "<" << QHostAddress(peer->peerAddress().toIPv4Address()).toString().toStdString() << ":" << QString::number(peer->peerPort()).toStdString() << "> " << msg.toStdString() << std::endl;
+                emit msgRecd(peer, msg);
+            }
         }
     }
 }
@@ -87,20 +90,22 @@ void P2Pclient::strToPeerList(QString str)
         for(int i = 1; i < splitStr.size() - 1; ++i) {
             QTcpSocket *socket = new QTcpSocket(this);
             QStringList addrAndPort = splitStr[i].split(':');
-            socket->connectToHost(addrAndPort[0], addrAndPort[1].toUShort());
-            socket->waitForConnected();
-            socket->waitForReadyRead();
-            if (socket->state() == QTcpSocket::ConnectedState) {
-                if (addPeerToList(socket)) {
-                    connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
-                    connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
-                    std::cout << "Connected to " << splitStr[i].toStdString() << std::endl;
-                    emit newConn(socket);
+            if (addrAndPort[0] != QHostAddress(socket->localAddress().toIPv4Address()).toString()) {
+                socket->connectToHost(addrAndPort[0], addrAndPort[1].toUShort());
+                socket->waitForConnected();
+                socket->waitForReadyRead();
+                if (socket->state() == QTcpSocket::ConnectedState) {
+                    if (addPeerToList(socket)) {
+                        connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
+                        connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
+                        std::cout << "Connected to " << splitStr[i].toStdString() << std::endl;
+                        emit newConn(socket);
+                    }
                 }
-            }
-            else {
-                std::cout << "Failed to connect to " << splitStr[i].toStdString() << std::endl;
-                emit failedConn(splitStr[i]);
+                else {
+                    std::cout << "Failed to connect to " << splitStr[i].toStdString() << std::endl;
+                    emit failedConn(splitStr[i]);
+                }
             }
         }
     }
