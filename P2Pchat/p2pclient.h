@@ -16,17 +16,25 @@ public:
     void sendMsg(QString msg);
     QList<QTcpSocket*> getPeers();
 
+    enum TYPE {
+        SUCCESS,
+        NEUTRAL,
+        FAIL
+    };
+
 signals:
     void msgSent(QString msg);
     void msgRecd(QTcpSocket* peer, QString msg);
     void newConn(QTcpSocket* peer);
     void failedConn(QString addrAndPort);
     void disConn(QString addrAndPort);
+    void commandHandled(QString text, TYPE type);
 
 private:
     QTcpServer* server;
     QList<QTcpSocket*> peers;
     QList<QString> peersAddrAndPort;
+    QString ownIp;
 
     void init();
     void loop();
@@ -34,6 +42,7 @@ private:
     QString peerListToStr(QTcpSocket* target);
     void strToPeerList(QString str);
     bool addPeerToList(QTcpSocket* peer);
+    void handleCommand(QString command);
 
 private slots:
     void newConnection();

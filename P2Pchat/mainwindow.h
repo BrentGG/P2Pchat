@@ -28,6 +28,7 @@ private slots:
     void sendButtonPressed();
     void dispFirstConn();
     void dispDisConn(QString addrAndPort);
+    void systemPrint(QString text, P2Pclient::TYPE type);
 
 private:
     Ui::MainWindow *ui;

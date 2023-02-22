@@ -18,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent, QString addr, quint16 port): QMainWindow
     connect(client, &P2Pclient::newConn, this, &MainWindow::dispNewConn);
     connect(client, &P2Pclient::failedConn, this, &MainWindow::dispFailedConn);
     connect(client, &P2Pclient::disConn, this, &MainWindow::dispDisConn);
+    connect(client, &P2Pclient::commandHandled, this, &MainWindow::systemPrint);
 
     QWidget* centralWidget = new QWidget();
     QVBoxLayout* mainLayout = new QVBoxLayout();
@@ -94,5 +95,16 @@ void MainWindow::dispDisConn(QString addrAndPort)
 {
     recdField->setTextColor(QColor::fromRgb(255, 0, 0));
     recdField->append("<System> " + addrAndPort + " disconnected");
+}
+
+void MainWindow::systemPrint(QString text, P2Pclient::TYPE type)
+{
+    if (type == P2Pclient::NEUTRAL)
+        recdField->setTextColor(QColor::fromRgb(0, 0, 255));
+    else if (type == P2Pclient::SUCCESS)
+        recdField->setTextColor(QColor::fromRgb(0, 255, 0));
+    else if (type == P2Pclient::FAIL)
+        recdField->setTextColor(QColor::fromRgb(255, 0, 0));
+    recdField->append("<System> " + text);
 }
 

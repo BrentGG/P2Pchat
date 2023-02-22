@@ -1,6 +1,7 @@
 #include "p2pclient.h"
 
 #include <iostream>
+#include <QNetworkInterface>
 
 P2Pclient::P2Pclient()
 {
@@ -17,6 +18,7 @@ P2Pclient::P2Pclient(QString addr, unsigned short port)
     socket->waitForReadyRead();
     addPeerToList(socket);
     strToPeerList(QString(socket->readAll()));
+    ownIp = QHostAddress(socket->localAddress().toIPv4Address()).toString();
     connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
     connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
 }
@@ -29,6 +31,11 @@ void P2Pclient::init()
         std::cout << "Server could not start" << std::endl;
     else
         std::cout << "Server started" << std::endl;
+    const QHostAddress &localhost = QHostAddress(QHostAddress::LocalHost);
+    for (const QHostAddress &address: QNetworkInterface::allAddresses()) {
+        if (address.protocol() == QAbstractSocket::IPv4Protocol && address != localhost)
+             ownIp = QHostAddress(address.toIPv4Address()).toString();
+    }
 }
 
 void P2Pclient::newConnection()
@@ -122,13 +129,26 @@ bool P2Pclient::addPeerToList(QTcpSocket *peer)
     return false;
 }
 
+void P2Pclient::handleCommand(QString command)
+{
+    QStringList commandSplit = command.split(' ');
+    if (commandSplit[0] == "\\help")
+        emit commandHandled("Available commands:\n\\myip", TYPE::NEUTRAL);
+    else if (commandSplit[0] == "\\myip")
+        emit commandHandled("Your IP: " + ownIp, TYPE::NEUTRAL);
+}
+
 void P2Pclient::sendMsg(QString msg)
 {
-    for(QTcpSocket* peer : peers) {
-        peer->write(QString(msg).toUtf8());
+    if (msg[0] != '\\') {
+        for(QTcpSocket* peer : peers) {
+            peer->write(QString(msg).toUtf8());
+        }
+        std::cout << "Message sent: " << msg.toStdString() << std::endl;
+        emit msgSent(msg);
     }
-    std::cout << "Message sent: " << msg.toStdString() << std::endl;
-    emit msgSent(msg);
+    else
+        handleCommand(msg);
 }
 
 QList<QTcpSocket*> P2Pclient::getPeers()
