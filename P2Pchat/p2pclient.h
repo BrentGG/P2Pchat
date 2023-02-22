@@ -39,7 +39,7 @@ private:
     QString ownIp;
 
     void init();
-    void loop();
+    void scan();
 
     QString peerListToStr(QTcpSocket* target);
     void strToPeerList(QString str);

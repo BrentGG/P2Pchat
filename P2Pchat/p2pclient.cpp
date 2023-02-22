@@ -18,7 +18,6 @@ P2Pclient::P2Pclient(QString addr, unsigned short port)
     socket->waitForReadyRead();
     addPeerToList(socket);
     strToPeerList(QString(socket->readAll()));
-    ownIp = QHostAddress(socket->localAddress().toIPv4Address()).toString();
     connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
     connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
 }
@@ -36,6 +35,41 @@ void P2Pclient::init()
         if (address.protocol() == QAbstractSocket::IPv4Protocol && address != localhost)
              ownIp = QHostAddress(address.toIPv4Address()).toString();
     }
+}
+
+void P2Pclient::scan()
+{
+    emit print("Scanning for new peer network", TYPE::NEUTRAL);
+    std::cout << "Scanning for new peer network" << std::endl;
+    for (QTcpSocket* peer : peers)
+        peer->disconnectFromHost();
+    peers.clear();
+    peersAddrAndPort.clear();
+    names.clear();
+    show.clear();
+    QString addrRange = ownIp.left(ownIp.lastIndexOf('.'));
+    for (int i = 0; i < 255; ++i) {
+        std::cout << "Scanning " << addrRange.toStdString() << "." << QString::number(i).toStdString() << std::endl;
+        QTcpSocket* socket = new QTcpSocket(this);
+        socket->connectToHost(addrRange + "." + QString::number(i), 24042);
+        bool connected = socket->waitForConnected(1000);
+        if (connected) {
+            socket->waitForReadyRead();
+            QString response = QString(socket->readAll());
+            QList<QString> responseList = response.split('\n');
+            if (response.size() > 0 && responseList[0] == "NEWCON") {
+                std::cout << "Connected to " << socket->peerAddress().toString().toStdString() << ":" << QString::number(socket->peerPort()).toStdString() << std::endl;
+                addPeerToList(socket);
+                strToPeerList(response);
+                connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
+                connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
+                emit newConn(socket);
+                return;
+            }
+            socket->disconnectFromHost();
+        }
+    }
+    emit print("Could not find new peer network", TYPE::FAIL);
 }
 
 void P2Pclient::newConnection()
@@ -169,6 +203,8 @@ void P2Pclient::handleCommand(QString command)
             }
         }
     }
+    else if (commandSplit[0] == "\\scan")
+        scan();
     else
         emit print("Command not recognized", TYPE::FAIL);
 }
