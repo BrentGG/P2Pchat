@@ -48,13 +48,17 @@ void P2Pclient::scan()
     names.clear();
     show.clear();
     QString addrRange = ownIp.left(ownIp.lastIndexOf('.'));
+    QStringList list = ownIp.split('.');
+    int lastPart = QString(list[list.size() - 1]).toInt();
     for (int i = 0; i < 255; ++i) {
+        if (lastPart == i)
+            continue;
         std::cout << "Scanning " << addrRange.toStdString() << "." << QString::number(i).toStdString() << std::endl;
         QTcpSocket* socket = new QTcpSocket(this);
         socket->connectToHost(addrRange + "." + QString::number(i), 24042);
-        bool connected = socket->waitForConnected(1000);
+        bool connected = socket->waitForConnected(100);
         if (connected) {
-            socket->waitForReadyRead();
+            socket->waitForReadyRead(1000);
             QString response = QString(socket->readAll());
             QList<QString> responseList = response.split('\n');
             if (response.size() > 0 && responseList[0] == "NEWCON") {
