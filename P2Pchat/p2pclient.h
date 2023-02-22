@@ -14,7 +14,7 @@ public:
     P2Pclient(QString addr, unsigned short port);
 
     void sendMsg(QString msg);
-    QTcpSocket* getFirstConn();
+    QList<QTcpSocket*> getPeers();
 
 signals:
     void msgSent(QString msg);

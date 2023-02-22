@@ -80,12 +80,13 @@ void MainWindow::sendButtonPressed()
 
 void MainWindow::dispFirstConn()
 {
-    QTcpSocket* firstConn = client->getFirstConn();
-    if (firstConn != nullptr)
-        dispNewConn(firstConn);
-    else {
-        recdField->setTextColor(QColor::fromRgb(0, 255, 0));
+    QList<QTcpSocket*> peers = client->getPeers();
+    recdField->setTextColor(QColor::fromRgb(0, 255, 0));
+    if (peers.size() <= 0)
         recdField->append("<System> waiting for peers to connect");
+    else {
+        for (QTcpSocket* peer : peers)
+            recdField->append("<System> connected to " + QHostAddress(peer->peerAddress().toIPv4Address()).toString() + ":" + QString::number(peer->peerPort()));
     }
 }
 

@@ -131,7 +131,7 @@ void P2Pclient::sendMsg(QString msg)
     emit msgSent(msg);
 }
 
-QTcpSocket *P2Pclient::getFirstConn()
+QList<QTcpSocket*> P2Pclient::getPeers()
 {
-    return peers.size() > 0 ? peers[0] : nullptr;
+    return peers;
 }
