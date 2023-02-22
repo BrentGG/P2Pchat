@@ -35,7 +35,7 @@ void P2Pclient::newConnection()
 {
     QTcpSocket *socket = server->nextPendingConnection();
     if (addPeerToList(socket)) {
-        socket->write(peerListToStr().toUtf8());
+        socket->write(peerListToStr(socket).toUtf8());
         connect(socket, &QTcpSocket::readyRead, this, &P2Pclient::read);
         connect(socket, &QTcpSocket::disconnected, this, &P2Pclient::peerDisconnected);
         std::cout << "Connected to " << socket->peerAddress().toString().toStdString() << ":" << QString::number(socket->peerPort()).toStdString() << std::endl;
@@ -71,11 +71,11 @@ void P2Pclient::peerDisconnected()
     }
 }
 
-QString P2Pclient::peerListToStr()
+QString P2Pclient::peerListToStr(QTcpSocket* target)
 {
     QString str = "NEWCON\n";
     for(QTcpSocket* peer : peers) {
-        if (peer->state() == QTcpSocket::ConnectedState) {
+        if (peer->state() == QTcpSocket::ConnectedState && peer != target) {
             str.append(QHostAddress(peer->peerAddress().toIPv4Address()).toString());
             str.append(":24042\n");
         }

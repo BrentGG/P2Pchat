@@ -31,7 +31,7 @@ private:
     void init();
     void loop();
 
-    QString peerListToStr();
+    QString peerListToStr(QTcpSocket* target);
     void strToPeerList(QString str);
     bool addPeerToList(QTcpSocket* peer);
 
